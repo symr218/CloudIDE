@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudIDE ダッシュボード</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <header>
+            <div class="header-title">☁️ CloudIDE ダッシュボード</div>
+            <div class="header-info">
+                <div class="timestamp">最終更新: <span id="current-time">--:--:--</span></div>
+                <div><span class="status-badge">🟢 {{ data.system_status }}</span></div>
+            </div>
+        </header>
+
+        <!-- メインダッシュボード -->
+        <div class="dashboard-grid">
+            <!-- CPU使用率 -->
+            <div class="card" id="cpu-usage">
+                <div class="card-title">
+                    CPU使用率
+                </div>
+                <div class="card-value">{{ data.cpu_usage }}<span class="card-unit">%</span></div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" style="width: {{ data.cpu_usage }}%"></div>
+                </div>
+                <div class="card-meta">リアルタイム監視中</div>
+            </div>
+
+            <!-- メモリ使用率 -->
+            <div class="card" id="memory-usage">
+                <div class="card-title">
+                    メモリ使用率
+                </div>
+                <div class="card-value">{{ data.memory_usage }}<span class="card-unit">%</span></div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" style="width: {{ data.memory_usage }}%"></div>
+                </div>
+                <div class="card-meta">リアルタイム監視中</div>
+            </div>
+
+            <!-- ディスク使用率 -->
+            <div class="card" id="disk-usage">
+                <div class="card-title">
+                    ディスク使用率
+                </div>
+                <div class="card-value">{{ data.disk_usage }}<span class="card-unit">%</span></div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" style="width: {{ data.disk_usage }}%"></div>
+                </div>
+                <div class="card-meta">リアルタイム監視中</div>
+            </div>
+
+            <!-- ネットワークレイテンシ -->
+            <div class="card" id="network-latency">
+                <div class="card-title">
+                    ネットワークレイテンシ
+                </div>
+                <div class="card-value">{{ data.network_latency }}<span class="card-unit">ms</span></div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" style="width: {{ (data.network_latency / 100) * 100 }}%"></div>
+                </div>
+                <div class="card-meta">平均応答時間</div>
+            </div>
+
+            <!-- アクティブユーザー -->
+            <div class="card" id="active-users">
+                <div class="card-title">
+                    アクティブユーザー
+                </div>
+                <div class="card-value">{{ data.active_users }}<span class="card-unit">人</span></div>
+                <div style="margin-top: 10px;">
+                    <div style="font-size: 12px; color: #999;">
+                        現在接続中のユーザー数
+                    </div>
+                </div>
+                <div class="card-meta">リアルタイム監視中</div>
+            </div>
+
+            <!-- 総リクエスト数 -->
+            <div class="card" id="total-requests">
+                <div class="card-title">
+                    総リクエスト数
+                </div>
+                <div class="card-value">{{ data.total_requests }}<span class="card-unit">件</span></div>
+                <div style="margin-top: 10px;">
+                    <div style="font-size: 12px; color: #999;">
+                        本セッション中の総処理数
+                    </div>
+                </div>
+                <div class="card-meta">リアルタイム監視中</div>
+            </div>
+        </div>
+
+        <!-- フッター -->
+        <footer>
+            <p>CloudIDE Dashboard v1.0 | リアルタイムシステム監視</p>
+            <p>自動更新間隔: 3秒</p>
+        </footer>
+    </div>
+
+    <!-- JavaScriptファイル -->
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
