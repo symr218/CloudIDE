@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>社内改善掲示板 | 静的サンプル</title>
+    <title>社内IT改善掲示板 | 静的サンプル</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div class="container">
         <header class="board-header">
             <div>
-                <p class="eyebrow">社内 IT 改善 事例ギャラリー</p>
+                <p class="eyebrow">社内IT 改善事例ギャラリー</p>
                 <h1>Improvement Board</h1>
                 <p class="lede">写真と概要を一覧で確認し、クリックで詳細・コメント・グッドができます。</p>
             </div>
@@ -35,7 +35,7 @@
                 <h2 id="detail-title">タイトル</h2>
                 <p class="lede" id="detail-summary">概要</p>
             </div>
-            <button class="icon-btn" id="drawer-close" aria-label="閉じる">×</button>
+            <button class="icon-btn" id="drawer-close" aria-label="閉じる">✕</button>
         </div>
         <div class="drawer-body">
             <div class="detail-hero" id="detail-hero"></div>
@@ -43,6 +43,9 @@
                 <span class="pill" id="detail-owner">担当: -</span>
                 <span class="pill" id="detail-impact">効果: -</span>
                 <span class="pill" id="detail-date">公開日: -</span>
+            </div>
+            <div class="detail-links">
+                <a id="detail-pdf" class="btn outline hidden" target="_blank" rel="noopener">📄 添付PDFを開く</a>
             </div>
             <article id="detail-body" class="detail-body"></article>
 

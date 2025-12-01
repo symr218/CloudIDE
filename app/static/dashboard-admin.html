@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>社内改善掲示板 | 管理</title>
+    <title>社内IT改善掲示板 | 管理</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -12,7 +12,7 @@
             <div>
                 <p class="eyebrow">IT 管理者向け</p>
                 <h1>改善事例を管理</h1>
-                <p class="lede">投稿と運用分析を一画面で。必要に応じてペイン切り替えできます。</p>
+                <p class="lede">投稿と運用分析を一画面で。よく使う操作にすぐアクセスできます。</p>
             </div>
             <div class="header-actions">
                 <a class="btn primary link-btn" href="dashboard-static.html">一覧を見る</a>
@@ -20,13 +20,15 @@
             </div>
         </div>
 
-        <div class="tab-bar large">
-            <button class="tab-btn big" data-tab="ops">運用・分析</button>
-            <button class="tab-btn" data-tab="post">投稿</button>
+        <div class="cta-row">
+            <button class="btn primary big tab-btn active" data-tab="ops">📊 分析パネル</button>
+            <button class="btn big tab-btn" data-tab="post">📝 投稿フォーム</button>
+            <button class="btn big tab-btn" data-tab="manage">🗂 投稿管理</button>
+            <a class="btn link-btn" href="dashboard-static.html">一覧を見る</a>
         </div>
 
-        <div class="admin-layout">
-            <aside class="panel slim admin-section" data-tab="ops">
+        <div class="admin-layout single">
+            <aside class="panel admin-section" data-tab="ops">
                 <div class="panel-header">
                     <div>
                         <p class="eyebrow">運用・分析</p>
@@ -35,6 +37,17 @@
                 </div>
                 <div class="panel-body">
                     <div id="analytics-metrics" class="analytics-grid"></div>
+                    <div class="chart-row">
+                        <div class="chart-card">
+                            <h4>タグ別シェア</h4>
+                            <div id="tag-pie" class="chart-pie"></div>
+                            <div id="tag-legend" class="legend"></div>
+                        </div>
+                        <div class="chart-card">
+                            <h4>記事別 PV</h4>
+                            <div id="case-bars" class="bar-chart"></div>
+                        </div>
+                    </div>
                     <h4 style="margin-top:14px;">記事別 PV</h4>
                     <table class="table">
                         <thead><tr><th>記事</th><th>PV</th><th>推移</th></tr></thead>
@@ -83,11 +96,11 @@
 
                     <div>
                         <label for="summary">概要 *</label><br>
-                        <textarea id="summary" rows="2" required placeholder="短い概要を入力"></textarea>
+                        <textarea id="summary" rows="3" required placeholder="短い概要を入力"></textarea>
                     </div>
                     <div>
                         <label for="detail">詳細 *</label><br>
-                        <textarea id="detail" rows="5" required placeholder="どのような改善か、手順や効果を詳しく入力"></textarea>
+                        <textarea id="detail" rows="6" required placeholder="どのような改善を行い、手順や効果を詳しく入力"></textarea>
                     </div>
                     <div class="form-grid">
                         <div>
@@ -95,7 +108,7 @@
                             <div class="tag-chip-row" id="tag-chip-row">
                                 <!-- JS でタグ候補を配置 -->
                             </div>
-                            <input id="tags-extra" placeholder="自由入力タグ (カンマ区切り、任意)">
+                            <input id="tags-extra" placeholder="自由入力タグ (カンマ区切り)">
                             <p class="helper">選択＋自由入力を合わせてタグ化します。指定が無い場合は「未分類」。</p>
                         </div>
                         <div>
@@ -103,12 +116,41 @@
                             <input id="image-file" type="file" accept="image/*">
                             <p class="helper">未指定の場合はタイトル入りのプレースホルダ画像を自動生成します。</p>
                         </div>
+                        <div>
+                            <label for="pdf-file">PDF添付（任意・ダウンロード可）</label><br>
+                            <input id="pdf-file" type="file" accept="application/pdf">
+                            <p class="helper">詳細資料などを添付できます。閲覧画面からダウンロード可能です。</p>
+                        </div>
                     </div>
 
                     <div class="card-actions" style="margin-top: 6px;">
                         <button type="submit" class="btn primary">投稿を保存</button>
                     </div>
                 </form>
+            </div>
+
+            <div class="panel admin-section hidden" data-tab="manage">
+                <div class="panel-header">
+                    <div>
+                        <p class="eyebrow">投稿管理</p>
+                        <h3>編集・削除</h3>
+                    </div>
+                    <span class="helper">投稿完了後は自動でここに移動します</span>
+                </div>
+                <div class="panel-body">
+                    <table class="table" id="manage-table">
+                        <thead>
+                            <tr>
+                                <th>タイトル / タグ</th>
+                                <th>担当</th>
+                                <th>PV</th>
+                                <th>いいね</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="manage-list"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
