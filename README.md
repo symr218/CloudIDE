@@ -1,215 +1,84 @@
-# CloudIDE ダッシュボードアプリケーション
+# CloudIDE Dashboard
 
-アプリケーションサーバーで起動できるリアルタイムダッシュボードアプリケーションです。システムのCPU、メモリ、ディスク使用率などをリアルタイムで監視・表示します。
+A small Flask-based real-time dashboard. CPU, memory, disk, and network metrics are generated server-side and fetched every 3 seconds from a REST API to update the page. Sessions are stored in SQLite so the app can count active users.
 
-## 🎯 機能
+## Features
+- Dashboard at `/` with auto-refresh every 3 seconds.
+- REST endpoint `/api/dashboard-data` returns JSON metrics plus active user count.
+- Health check at `/health`.
+- Cookie-based session upsert into the `user_session` table; sessions seen within 5 minutes are counted as active.
+- Host/port can be set via CLI flags (`--host`, `--port`) or `.env` (`HOST`, `PORT`).
 
-- **リアルタイム監視**: CPU使用率、メモリ使用率、ディスク使用率をリアルタイムで表示
-- **自動更新**: 3秒ごとにダッシュボード情報を自動更新
-- **レスポンシブデザイン**: モバイルデバイスにも対応した画面レイアウト
-- **ヘルスチェック**: `/health` エンドポイントでサーバーの稼働状況を確認
-- **REST API**: `/api/dashboard-data` でダッシュボードデータをJSON形式で取得
+## Requirements
+- Python 3.8+
+- pip (virtualenv recommended)
+- SQLite bundled; switch to PostgreSQL, etc. via `DATABASE_URL`.
 
-## 📋 必要要件
-
-- Python 3.8 以上
-- pip（Pythonパッケージ管理ツール）
-
-## 🚀 インストール手順
-
-### 1. 依存パッケージのインストール
-
+## Setup
 ```bash
+python -m venv .venv
+source .venv/bin/activate        # Windows: .\venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. アプリケーションの起動
-
-```bash
-python app.py
-```
-
-またはPythonの仮想環境を使用する場合:
-
-```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# または
-venv\Scripts\activate  # Windows
-
-pip install -r requirements.txt
-python app.py
-```
-
-## 🌐 アクセス方法
-
-アプリケーション起動後、ブラウザで以下のURLにアクセスしてください：
-
-```
-http://localhost:5000
-```
-
-また、リモートアクセスが必要な場合：
-
-```
-http://<サーバーIP>:5000
-```
-
-## 📊 利用可能なエンドポイント
-
-| エンドポイント | メソッド | 説明 |
-|-------------|---------|------|
-| `/` | GET | ダッシュボード画面 |
-| `/api/dashboard-data` | GET | ダッシュボードデータ（JSON形式） |
-| `/health` | GET | ヘルスチェック |
-
-## 🔧 環境変数設定
-
-`.env` ファイルで以下の設定が可能です：
-
+Optional `.env`:
 ```env
-FLASK_ENV=development  # 開発環境モード
-HOST=0.0.0.0          # バインドするホストアドレス
-PORT=5000             # バインドするポート番号
+FLASK_ENV=development
+HOST=0.0.0.0
+PORT=5000
+SECRET_KEY=change-me-in-production
+DATABASE_URL=sqlite:///dev.db
 ```
 
-## 📁 ディレクトリ構造
+## Run
+- Dev: `python app.py --host 0.0.0.0 --port 5000`
+- macOS/Linux helper: `./run.sh`
+- Windows PowerShell: `./run.ps1 -Mode dev -Host 0.0.0.0 -Port 5000`
+- Windows batch: `run.bat`
+- Production-style (Waitress): `./run.ps1 -Mode prod -Host 0.0.0.0 -Port 5000`
 
-```
-.
-├── app.py                    # アプリケーションメインファイル
-├── requirements.txt          # Python依存パッケージ
-├── .env                     # 環境変数設定
-├── .gitignore               # Git管理外ファイル設定
-└── app/
-    ├── __init__.py          # Flaskアプリケーションファクトリー
-    ├── routes.py            # ルーティング定義
-    ├── templates/
-    │   └── dashboard.html   # ダッシュボードHTMLテンプレート
-    └── static/
-        ├── css/
-        │   └── style.css    # ダッシュボードスタイル
-        └── js/
-            └── dashboard.js # ダッシュボードJavaScript
-```
+## API and Pages
+| Path | Method | Description |
+| --- | --- | --- |
+| `/` | GET | Dashboard page (auto-refreshes every 3s) |
+| `/api/dashboard-data` | GET | JSON metrics (`cpu_usage`, `memory_usage`, `disk_usage`, `network_latency`, `active_users`, `total_requests`, `timestamp`) |
+| `/health` | GET | Health check returning `{ "status": "healthy" }` |
 
-## 🎨 ダッシュボード表示項目
-
-- **CPU使用率**: リアルタイムCPU使用率（パーセンテージ）
-- **メモリ使用率**: 現在のメモリ使用率（パーセンテージ）
-- **ディスク使用率**: ディスク容量使用率（パーセンテージ）
-- **ネットワークレイテンシ**: ネットワーク応答時間（ミリ秒）
-- **アクティブユーザー**: 現在接続中のユーザー数
-- **総リクエスト数**: 処理済みリクエスト数
-
-## 💡 使用技術
-
-- **バックエンド**: Flask（Python Webフレームワーク）
-- **フロントエンド**: HTML5、CSS3、JavaScript（ES6+）
-- **スタイリング**: CSS Grid、Flexbox
-- **自動更新**: Fetch API、setInterval
-
-## 🛠️ カスタマイズ方法
-
-### ポート番号の変更
-
-`.env` ファイルで `PORT` を変更してください：
-
-```env
-PORT=8080
-```
-
-### データ更新間隔の変更
-
-`app/static/js/dashboard.js` の以下の行を編集：
-
-```javascript
-// 3秒ごとに自動更新（3000ミリ秒）
-setInterval(updateDashboard, 3000);
-```
-
-## ⚡ パフォーマンス
-
-- 初回ロード時間: < 1秒
-- ダッシュボード更新間隔: 3秒
-- ページレスポンス: < 100ms
-
-## 📝 ライセンス
-
-MIT License
-
-## 👨‍💻 開発者向け情報
-
-### デバッグモード有効時
-
-デバッグモードで起動すると、コード変更時に自動的にサーバーが再起動します（開発時に便利）。
-
-### ログ確認
-
-アプリケーション実行時のログは以下で確認できます：
-
+## Database and Migrations
+- Default: SQLite `dev.db` in the project root.
+- Flask-Migrate/Alembic is included. After the first setup:
 ```bash
-tail -f /tmp/dashboard_app.log  # Linux/Mac
-```
-
-## 🗄️ データベースとマイグレーション
-
-このプロジェクトでは開発環境で **SQLite**（`dev.db`）を使い、ORMには `Flask-SQLAlchemy`、マイグレーション管理は `Flask-Migrate`（Alembic）を使用します。プロダクションでは環境変数 `DATABASE_URL` を使って PostgreSQL 等に切り替えてください。
-
-セットアップ手順（初回）:
-
-```bash
-# 依存パッケージをインストール
-pip install -r requirements.txt
-
-# Flask アプリの参照を設定（アプリファクトリーを指定）
 export FLASK_APP=app:create_app
-
-# マイグレーション用ディレクトリを初期化（既にある場合は不要）
-flask db init
-
-# モデルの変更を検知してマイグレーションを作成
-flask db migrate -m "create user_session"
-
-# データベースに適用
+flask db init      # only once
+flask db migrate -m "init"
 flask db upgrade
 ```
+- For another DB: `DATABASE_URL=postgresql+psycopg://user:pass@host:5432/dbname`
 
-環境変数でデータベース接続先を指定する例（PostgreSQL 本番想定）:
+## Behavior Notes
+- Client polls with Fetch + `setInterval` (3s).
+- Issues a `session_id` cookie and upserts `UserSession`; rows with `last_seen` in the last 5 minutes are active.
+- Detects `prefers-color-scheme: dark` and adds `dark-mode` to the body (CSS can be extended).
 
-```bash
-export DATABASE_URL=postgresql+psycopg://user:pass@dbhost:5432/dbname
+## Verification
+- macOS/Linux: `./verify.sh` (requires `netstat` and `curl`) checks port 5000 plus `/health`, `/api/dashboard-data`, `/`.
+- Manual: `curl http://localhost:5000/health` and `curl http://localhost:5000/api/dashboard-data`
+
+## Project Layout
+```
+app.py                 # entry point with CLI flags
+run.sh / run.ps1 / run.bat
+app/
+  __init__.py          # Flask app factory, DB setup
+  routes.py            # views, REST API, health check
+  models.py            # UserSession model
+  templates/dashboard.html
+  static/css/style.css
+  static/js/dashboard.js
+  static/dashboard-static.html  # UI prototype, not served by Flask
+migrations/            # for Flask-Migrate (created after init)
+requirements.txt
 ```
 
-アクティブユーザーのカウント方法:
-- `UserSession` テーブルで `session_id` と `last_seen` を保持します。
-- ダッシュボードでは「直近5分以内にアクセスがあったセッション」をアクティブユーザーとしてカウントします。
-- 実運用で正確に接続数を追跡する場合は Redis と WebSocket を組み合わせる方法を推奨します。
-
-
-## 🐛 トラブルシューティング
-
-### ポートが既に使用されている場合
-
-別のポートで起動してください：
-
-```bash
-PORT=8000 python app.py
-```
-
-### ModuleNotFoundError が発生した場合
-
-依存パッケージを確認してインストールしてください：
-
-```bash
-pip install -r requirements.txt
-```
-
-## 📞 サポート
-
-問題が発生した場合は、Issue を作成してください。
-
----
-
-**作成日**: 2025年11月27日
-**バージョン**: 1.0.0
+## License
+MIT
