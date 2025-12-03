@@ -12,6 +12,22 @@ let filterMonth = new Date().getMonth() + 1;
 let filterStart = null;
 let filterEnd = null;
 let filterTags = new Set();
+let pieSegments = [];
+
+const TAG_PRESETS = [
+  "自動化",
+  "コスト最適化",
+  "セキュリティ",
+  "UX",
+  "運用改善",
+  "可観測性",
+  "開発効率",
+  "ナレッジ",
+  "監視",
+  "権限管理",
+  "AI",
+  "ヘルプデスク",
+];
 
 function escapeHtml(text) {
   const s = String(text ?? "");
@@ -55,7 +71,7 @@ function tagColor(tag) {
   return map[tag] || "#2563eb";
 }
 
-function generateFallbackImage(title = "New Case", primaryTag = "未設定") {
+function generateFallbackImage(title = "Case", primaryTag = "未設定") {
   const safe = escapeSvgText(title.slice(0, 28) || "Case");
   const base = tagColor(primaryTag);
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='500'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='${base}'/><stop offset='100%' stop-color='#60a5fa'/></linearGradient></defs><rect width='800' height='500' rx='32' fill='url(#g)'/><text x='50%' y='52%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Segoe UI' font-size='48' font-weight='700'>${safe}</text></svg>`;
@@ -153,26 +169,49 @@ function filterByPeriod(list) {
   return list;
 }
 
-async function refreshCases() {
-  try {
-    const data = await fetchJson("/api/cases");
-    cases = normalizeCases(data.cases || data || []);
-    renderAnalytics();
-    renderManageList();
-    renderFilterTags();
-  } catch (err) {
-    console.error("Failed to load cases", err);
-  }
+function renderFilterTags() {
+  const host = document.getElementById("filter-tags");
+  if (!host) return;
+  const uniqueTags = Array.from(
+    new Set(activeCases().flatMap((c) => (Array.isArray(c.tags) ? c.tags : [])))
+  ).filter(Boolean);
+  host.innerHTML = uniqueTags
+    .map(
+      (t) =>
+        `<button class="tag-chip ${filterTags.has(t) ? "selected" : ""}" data-value="${escapeHtml(
+          t
+        )}">${escapeHtml(t)}</button>`
+    )
+    .join("");
+  host.querySelectorAll(".tag-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const val = chip.dataset.value;
+      if (filterTags.has(val)) {
+        filterTags.delete(val);
+      } else {
+        filterTags.add(val);
+      }
+      renderFilterTags();
+      renderAnalytics();
+    });
+  });
 }
 
-function renderMetricsGrid(target, stats) {
-  if (!target) return;
-  target.innerHTML = `
-    <div class="metric-card"><div class="metric-label">件数</div><div class="metric-value">${stats.totalCases}</div></div>
-    <div class="metric-card"><div class="metric-label">PV合計</div><div class="metric-value">${stats.totalPv}</div></div>
-    <div class="metric-card"><div class="metric-label">いいね</div><div class="metric-value">${stats.totalLikes}</div></div>
-    <div class="metric-card"><div class="metric-label">コメント</div><div class="metric-value">${stats.totalComments}</div></div>
-  `;
+function renderTagChips() {
+  const row = document.getElementById("tag-chip-row");
+  if (!row) return;
+  row.innerHTML = "";
+  TAG_PRESETS.forEach((name) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "tag-chip";
+    chip.dataset.value = name;
+    chip.textContent = name;
+    chip.addEventListener("click", () => {
+      chip.classList.toggle("selected");
+    });
+    row.appendChild(chip);
+  });
 }
 
 function renderAnalytics() {
@@ -185,7 +224,14 @@ function renderAnalytics() {
   const totalLikes = filtered.reduce((sum, c) => sum + (c.likes || 0), 0);
   const totalComments = filtered.reduce((sum, c) => sum + (c.comments?.length || 0), 0);
   const metricsHost = document.getElementById("analytics-metrics");
-  renderMetricsGrid(metricsHost, { totalCases, totalPv, totalLikes, totalComments });
+  if (metricsHost) {
+    metricsHost.innerHTML = `
+      <div class="metric-card"><div class="metric-label">件数</div><div class="metric-value">${totalCases}</div></div>
+      <div class="metric-card"><div class="metric-label">PV合計</div><div class="metric-value">${totalPv}</div></div>
+      <div class="metric-card"><div class="metric-label">いいね</div><div class="metric-value">${totalLikes}</div></div>
+      <div class="metric-card"><div class="metric-label">コメント</div><div class="metric-value">${totalComments}</div></div>
+    `;
+  }
 
   const tagAgg = {};
   filtered.forEach((c) => {
@@ -235,31 +281,40 @@ function renderAnalytics() {
   const legend = document.getElementById("tag-legend");
   if (pie && legend) {
     const topTags = pvTags.slice(0, 6);
-    if (!topTags.length) {
+    const pieEntries = topTags.map(([tag, v]) => ({
+      tag,
+      pv: v.pv || 0,
+      count: v.count || 0,
+    }));
+    const pvSum = pieEntries.reduce((s, e) => s + e.pv, 0);
+    if (!pieEntries.length || pvSum === 0) {
       pie.style.background = "#f3f4f6";
       legend.innerHTML = "<div class='legend-item'>まだデータがありません</div>";
+      pieSegments = [];
     } else {
-      const total = topTags.reduce((s, [, v]) => s + (v.pv || 0), 0) || 1;
       let acc = 0;
-      const segments = topTags.map(([tag, v]) => {
-        const val = v.pv || 0;
-        const start = (acc / total) * 100;
-        acc += val;
-        const end = (acc / total) * 100;
-        const color = tagColor(tag);
-        return { tag, start, end, color, pv: val, count: v.count };
+      const segments = pieEntries.map(({ tag, pv, count }) => {
+        const value = pv;
+        const start = (acc / pvSum) * 100;
+        acc += value;
+        const end = (acc / pvSum) * 100;
+        const startDeg = (start / 100) * 360;
+        const endDeg = (end / 100) * 360;
+        return { tag, start, end, startDeg, endDeg, color: tagColor(tag), value, count, pv };
       });
       const gradient = segments.map((s) => `${s.color} ${s.start}% ${s.end}%`).join(", ");
       pie.style.background = `conic-gradient(${gradient})`;
+      const unit = "PV";
       legend.innerHTML =
         segments
           .map(
             (s) =>
               `<div class="legend-item"><span class="legend-dot" style="background:${s.color}"></span>${escapeHtml(
                 s.tag
-              )} (${s.count}件 / ${s.pv}PV)</div>`
+              )} (${s.count}件 / ${s.value}${unit})</div>`
           )
           .join("");
+      pieSegments = segments.map((s) => ({ ...s, unit, useCount: false }));
     }
   }
 
@@ -284,63 +339,110 @@ function renderAnalytics() {
   renderSidePanels(filtered);
 }
 
-function renderFilterTags() {
-  const host = document.getElementById("filter-tags");
-  if (!host) return;
-  const uniqueTags = Array.from(
-    new Set(activeCases().flatMap((c) => (Array.isArray(c.tags) ? c.tags : [])))
-  ).filter(Boolean);
-  host.innerHTML = uniqueTags
-    .map(
-      (t) =>
-        `<button class="tag-chip ${filterTags.has(t) ? "selected" : ""}" data-value="${escapeHtml(
-          t
-        )}">${escapeHtml(t)}</button>`
-    )
-    .join("");
-  host.querySelectorAll(".tag-chip").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      const val = chip.dataset.value;
-      if (filterTags.has(val)) {
-        filterTags.delete(val);
-      } else {
-        filterTags.add(val);
-      }
-      renderFilterTags();
-      renderAnalytics();
+function renderSidePanels(list) {
+  const totalHost = document.getElementById("side-totals");
+  if (totalHost) {
+    const likes = list.reduce((s, c) => s + (c.likes || 0), 0);
+    const pv = list.reduce((s, c) => s + (c.pv || 0), 0);
+    totalHost.innerHTML = `
+      <div class="mini-card"><div class="label">件数</div><div class="value">${list.length}</div></div>
+      <div class="mini-card"><div class="label">PV</div><div class="value">${pv}</div></div>
+      <div class="mini-card"><div class="label">いいね</div><div class="value">${likes}</div></div>
+    `;
+  }
+
+  const tagAgg = {};
+  list.forEach((c) => {
+    (c.tags || ["未設定"]).forEach((t) => {
+      if (!tagAgg[t]) tagAgg[t] = { pv: 0, count: 0 };
+      tagAgg[t].pv += c.pv || 0;
+      tagAgg[t].count += 1;
     });
   });
+  const topTags = Object.entries(tagAgg)
+    .sort((a, b) => b[1].pv - a[1].pv)
+    .slice(0, 6);
+  const topTagsHost = document.getElementById("side-top-tags");
+  if (topTagsHost) {
+    topTagsHost.innerHTML =
+      topTags
+        .map(
+          ([tag, v]) =>
+            `<div class="side-item"><div class="title">${escapeHtml(
+              tag
+            )}</div><div class="meta">${v.count}件 / ${v.pv}PV</div></div>`
+        )
+        .join("") || "<div class='side-item'>データなし</div>";
+  }
+
+  const latestHost = document.getElementById("side-latest");
+  if (latestHost) {
+    const latest = [...list].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+    latestHost.innerHTML =
+      latest
+        .map(
+          (c) =>
+            `<div class="side-item"><div class="title">${escapeHtml(
+              c.title
+            )}</div><div class="meta">${escapeHtml(c.date)} / ${c.tags
+              .map((t) => escapeHtml(t))
+              .join(", ")}</div></div>`
+        )
+        .join("") || "<div class='side-item'>データなし</div>";
+  }
 }
 
-function renderTagChips() {
-  const row = document.getElementById("tag-chip-row");
-  if (!row) return;
-  row.innerHTML = "";
-  const presets = [
-    "自動化",
-    "コスト最適化",
-    "セキュリティ",
-    "UX",
-    "運用改善",
-    "可観測性",
-    "開発効率",
-    "ナレッジ",
-    "監視",
-    "権限管理",
-    "AI",
-    "ヘルプデスク",
-  ];
-  presets.forEach((name) => {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "tag-chip";
-    chip.dataset.value = name;
-    chip.textContent = name;
-    chip.addEventListener("click", () => {
-      chip.classList.toggle("selected");
-    });
-    row.appendChild(chip);
-  });
+function populatePeriodInputs() {
+  const yearSel = document.getElementById("period-year");
+  const monthSel = document.getElementById("period-month");
+  if (yearSel) {
+    const currentYear = new Date().getFullYear();
+    yearSel.innerHTML = Array.from({ length: 5 }, (_, i) => currentYear - i)
+      .map((y) => `<option value="${y}" ${y === filterYear ? "selected" : ""}>${y}年</option>`)
+      .join("");
+  }
+  if (monthSel) {
+    monthSel.innerHTML = Array.from({ length: 12 }, (_, i) => i + 1)
+      .map((m) => `<option value="${m}" ${m === filterMonth ? "selected" : ""}>${m}月</option>`)
+      .join("");
+  }
+}
+
+function updatePeriodVisibility() {
+  const modeSel = document.getElementById("period-mode");
+  const yearSel = document.getElementById("period-year");
+  const monthSel = document.getElementById("period-month");
+  const startInput = document.getElementById("period-start");
+  const endInput = document.getElementById("period-end");
+  const mode = modeSel?.value || "all";
+
+  // Hide all first
+  if (yearSel) yearSel.style.display = "none";
+  if (monthSel) monthSel.style.display = "none";
+  if (startInput) startInput.style.display = "none";
+  if (endInput) endInput.style.display = "none";
+
+  if (mode === "year") {
+    if (yearSel) yearSel.style.display = "";
+  } else if (mode === "month") {
+    if (yearSel) yearSel.style.display = "";
+    if (monthSel) monthSel.style.display = "";
+  } else if (mode === "custom") {
+    if (startInput) startInput.style.display = "";
+    if (endInput) endInput.style.display = "";
+  }
+}
+
+async function refreshCases() {
+  try {
+    const data = await fetchJson("/api/cases");
+    cases = normalizeCases(data.cases || data || []);
+    renderAnalytics();
+    renderManageList();
+    renderFilterTags();
+  } catch (err) {
+    console.error("Failed to load cases", err);
+  }
 }
 
 function renderManageList() {
@@ -493,77 +595,6 @@ function closeManageDetail() {
   if (overlay) overlay.classList.remove("open");
 }
 
-function renderSidePanels(casesList) {
-  const totalHost = document.getElementById("side-totals");
-  if (totalHost) {
-    const likes = casesList.reduce((s, c) => s + (c.likes || 0), 0);
-    const pv = casesList.reduce((s, c) => s + (c.pv || 0), 0);
-    totalHost.innerHTML = `
-      <div class="mini-card"><div class="label">件数</div><div class="value">${casesList.length}</div></div>
-      <div class="mini-card"><div class="label">PV</div><div class="value">${pv}</div></div>
-      <div class="mini-card"><div class="label">いいね</div><div class="value">${likes}</div></div>
-    `;
-  }
-
-  const tagAgg = {};
-  casesList.forEach((c) => {
-    (c.tags || ["未設定"]).forEach((t) => {
-      if (!tagAgg[t]) tagAgg[t] = { pv: 0, count: 0 };
-      tagAgg[t].pv += c.pv || 0;
-      tagAgg[t].count += 1;
-    });
-  });
-  const topTags = Object.entries(tagAgg)
-    .sort((a, b) => b[1].pv - a[1].pv)
-    .slice(0, 6);
-  const topTagsHost = document.getElementById("side-top-tags");
-  if (topTagsHost) {
-    topTagsHost.innerHTML =
-      topTags
-        .map(
-          ([tag, v]) =>
-            `<div class="side-item"><div class="title">${escapeHtml(
-              tag
-            )}</div><div class="meta">${v.count}件 / ${v.pv}PV</div></div>`
-        )
-        .join("") || "<div class='side-item'>データなし</div>";
-  }
-
-  const latestHost = document.getElementById("side-latest");
-  if (latestHost) {
-    const latest = [...casesList].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
-    latestHost.innerHTML =
-      latest
-        .map(
-          (c) =>
-            `<div class="side-item"><div class="title">${escapeHtml(
-              c.title
-            )}</div><div class="meta">${escapeHtml(c.date)} / ${c.tags
-              .map((t) => escapeHtml(t))
-              .join(", ")}</div></div>`
-        )
-        .join("") || "<div class='side-item'>データなし</div>";
-  }
-}
-
-function populatePeriodInputs() {
-  const yearSel = document.getElementById("period-year");
-  const monthSel = document.getElementById("period-month");
-  if (yearSel) {
-    const currentYear = new Date().getFullYear();
-    yearSel.innerHTML = Array.from({ length: 5 }, (_, i) => currentYear - i)
-      .map((y) => `<option value="${y}" ${y === filterYear ? "selected" : ""}>${y}年</option>`)
-      .join("");
-  }
-  if (monthSel) {
-    monthSel.innerHTML = Array.from({ length: 12 }, (_, i) => i + 1)
-      .map(
-        (m) => `<option value="${m}" ${m === filterMonth ? "selected" : ""}>${m}月</option>`
-      )
-      .join("");
-  }
-}
-
 async function handleSubmit(e) {
   e.preventDefault();
   const title = document.getElementById("title").value.trim();
@@ -627,7 +658,8 @@ async function handleSubmit(e) {
         method: "PATCH",
         body: JSON.stringify(payload),
       });
-      if (res.case) cases = normalizeCases([res.case, ...cases.filter((c) => c.id !== res.case.id)]);
+      if (res.case)
+        cases = normalizeCases([res.case, ...cases.filter((c) => c.id !== res.case.id)]);
       if (status) status.textContent = "更新しました";
     } else {
       const res = await fetchJson("/api/cases", {
@@ -718,20 +750,90 @@ function bindEvents() {
   const monthSel = document.getElementById("period-month");
   const startInput = document.getElementById("period-start");
   const endInput = document.getElementById("period-end");
-  if (periodMode) periodMode.addEventListener("change", () => { filterMode = periodMode.value; renderAnalytics(); });
-  if (yearSel) yearSel.addEventListener("change", () => { filterYear = Number(yearSel.value); renderAnalytics(); });
-  if (monthSel) monthSel.addEventListener("change", () => { filterMonth = Number(monthSel.value); renderAnalytics(); });
-  if (startInput) startInput.addEventListener("change", () => { filterStart = startInput.value; renderAnalytics(); });
-  if (endInput) endInput.addEventListener("change", () => { filterEnd = endInput.value; renderAnalytics(); });
+  if (periodMode)
+    periodMode.addEventListener("change", () => {
+      filterMode = periodMode.value;
+      updatePeriodVisibility();
+      renderAnalytics();
+    });
+  if (yearSel)
+    yearSel.addEventListener("change", () => {
+      filterYear = Number(yearSel.value);
+      renderAnalytics();
+    });
+  if (monthSel)
+    monthSel.addEventListener("change", () => {
+      filterMonth = Number(monthSel.value);
+      renderAnalytics();
+    });
+  if (startInput)
+    startInput.addEventListener("change", () => {
+      filterStart = startInput.value;
+      renderAnalytics();
+    });
+  if (endInput)
+    endInput.addEventListener("change", () => {
+      filterEnd = endInput.value;
+      renderAnalytics();
+    });
 
-  const manageContainer = document.getElementById("manage-list");
-  if (manageContainer) {
-    manageContainer.addEventListener("click", handleManageClick);
+  const pie = document.getElementById("tag-pie");
+  if (pie) {
+    pie.style.position = "relative";
+    let tooltip = document.getElementById("tag-pie-tooltip");
+    if (!tooltip) {
+      tooltip = document.createElement("div");
+      tooltip.id = "tag-pie-tooltip";
+      tooltip.style.position = "absolute";
+      tooltip.style.background = "rgba(0,0,0,0.75)";
+      tooltip.style.color = "#fff";
+      tooltip.style.padding = "6px 8px";
+      tooltip.style.borderRadius = "6px";
+      tooltip.style.fontSize = "12px";
+      tooltip.style.pointerEvents = "none";
+      tooltip.style.display = "none";
+      tooltip.style.zIndex = "10";
+      pie.appendChild(tooltip);
+    }
+    const angleInSegment = (deg, seg) => {
+      // handle wrap-around (e.g. 350-20 deg)
+      if (seg.startDeg <= seg.endDeg) {
+        return deg >= seg.startDeg && deg <= seg.endDeg;
+      }
+      return deg >= seg.startDeg || deg <= seg.endDeg;
+    };
+    const showTooltip = (e) => {
+      if (!pieSegments.length) return;
+      const rect = pie.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const angle = (Math.atan2(dy, dx) * 180) / Math.PI; // -180..180, 0 at +x
+      const deg = (angle + 90 + 360) % 360; // 0 at top, clockwise
+      const hit = pieSegments.find((s) => angleInSegment(deg, s));
+      if (!hit) {
+        tooltip.style.display = "none";
+        return;
+      }
+      tooltip.style.display = "block";
+      tooltip.textContent = `${hit.tag}: ${hit.count}件 / ${hit.pv}PV`;
+      const offsetX = 8;
+      const offsetY = 8;
+      tooltip.style.left = `${e.clientX - rect.left + offsetX}px`;
+      tooltip.style.top = `${e.clientY - rect.top + offsetY}px`;
+    };
+    const hideTooltip = () => {
+      tooltip.style.display = "none";
+    };
+    pie.addEventListener("mousemove", showTooltip);
+    pie.addEventListener("mouseleave", hideTooltip);
   }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   populatePeriodInputs();
+  updatePeriodVisibility();
   renderTagChips();
   bindEvents();
   refreshCases();

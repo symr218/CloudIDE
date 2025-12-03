@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DB 簡易ビュー</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { background: #f5f6f8; }
+    .db-wrap { max-width: 1100px; margin: 32px auto; padding: 0 16px; }
+    .db-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .db-header h1 { font-size: 20px; margin: 0; }
+    .db-actions { display: flex; gap: 8px; }
+    .table { width: 100%; background: #fff; border-radius: 10px; box-shadow: var(--shadow); }
+    .table th { white-space: nowrap; }
+    .table tbody tr { cursor: pointer; }
+    .detail { margin-top: 16px; background: #fff; border-radius: 10px; padding: 12px; box-shadow: var(--shadow); }
+    .detail h2 { margin: 0 0 8px; font-size: 18px; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .pill { background: #eef2ff; color: #374151; padding: 4px 8px; border-radius: 999px; font-size: 12px; }
+    .comment-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin-top: 8px; }
+    .comment-head { display: flex; justify-content: space-between; font-size: 12px; color: #6b7280; }
+    .muted { color: #6b7280; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="db-wrap">
+    <div class="db-header">
+      <div>
+        <p class="eyebrow">DB 簡易ビュー</p>
+        <h1>Cases / Comments</h1>
+        <p class="muted">API 経由で DB の内容を一覧表示します（参照専用）。</p>
+      </div>
+      <div class="db-actions">
+        <label class="muted" style="display:flex;align-items:center;gap:4px;">
+          <input type="checkbox" id="toggle-deleted"> 削除済みも表示
+        </label>
+        <button class="btn outline" id="reload-btn">再読み込み</button>
+      </div>
+    </div>
+
+    <table class="table" id="case-table">
+      <thead>
+        <tr>
+          <th>ID</th><th>タイトル</th><th>タグ</th><th>PV</th><th>いいね</th><th>コメント</th><th>日付</th><th>状態</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="detail" id="detail-panel" hidden>
+      <h2 id="detail-title"></h2>
+      <div class="pill-row" id="detail-tags"></div>
+      <p class="muted" id="detail-meta"></p>
+      <p id="detail-summary"></p>
+      <p id="detail-detail"></p>
+      <pre class="comment-box" id="detail-raw" style="white-space:pre-wrap;"></pre>
+      <div id="detail-comments"></div>
+    </div>
+  </div>
+
+  <script src="js/db-view.js"></script>
+</body>
+</html>
