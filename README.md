@@ -1,20 +1,30 @@
-# iTraNavi Static Pages
+# iTraNavi (Static UI + API)
 
-This repository now only contains the standalone static mock pages for the improvement board (`dashboard-static`) and its admin console (`dashboard-admin`). There is no Flask server, database, or migration setup required.
+Static board/admin UIs now talk to a small Flask API with SQLite persistence and file uploads.
 
 ## Files
-- `app/static/dashboard-static.html` - public board with search, filters, pagination, likes, and comments.
-- `app/static/js/board.js` - front-end logic for the board page (seed data, localStorage persistence, detail drawer).
-- `app/static/dashboard-admin.html` - admin/ops view with analytics tab, post form, and management table.
-- `app/static/js/board-admin.js` - front-end logic for the admin page (charts, form handling, localStorage cases).
-- `app/static/css/style.css` - shared styles for both pages.
+- `app/static/dashboard-static.html` - public board UI.
+- `app/static/js/board.js` - board front-end logic (fetches cases, likes/comments/PV via API).
+- `app/static/dashboard-admin.html` - admin/ops UI.
+- `app/static/js/board-admin.js` - admin front-end logic (CRUD, analytics, uploads via API).
+- `app/static/css/style.css` - shared styles.
+- `server/app.py` - Flask API + SQLite storage + upload handler (`/api/*`, `/uploads/*`).
+- `requirements.txt` - Python deps.
 
-## How to View
-- Open either HTML file directly in your browser from `app/static/`.
-- Or run a simple static server from the repo root:
-  - `python -m http.server 8000 -d app/static`
-  - Then visit `http://localhost:8000/dashboard-static.html` or `http://localhost:8000/dashboard-admin.html`.
+## Setup
+```bash
+python -m venv .venv
+./.venv/Scripts/Activate.ps1   # Windows PowerShell
+# source .venv/bin/activate    # macOS/Linux
+pip install -r requirements.txt
+python server/app.py           # starts API + serves static files
+```
 
-## Notes
-- All data is client-side only and stored in `localStorage` (`customCases`, `likedCaseIds`, etc.).
-- Removed backend-related files and instructions so the repository is focused solely on the static and admin pages.
+Visit:
+- `http://localhost:5000/dashboard-static.html`
+- `http://localhost:5000/dashboard-admin.html`
+
+## Behavior
+- Data is stored server-side in SQLite at `data/app.db` (auto-created). Files are saved under `uploads/` and served from `/uploads/<file>`.
+- The API seeds a few sample cases on first run. PV/いいね/コメントは API 経由で更新。
+- Front-end keeps a local “liked” set perブラウザ to avoid多重いいね, but cases/comments/PV/live data come from the API.
